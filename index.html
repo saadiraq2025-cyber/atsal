@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>اتصال واتساب ويب</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+    <h2>تطبيق اتصال - مثل واتساب</h2>
+
+    <input id="myId" type="text" placeholder="Your ID" readonly>
+    <button onclick="generateId()">إنشاء هويتي</button>
+
+    <input id="otherId" type="text" placeholder="ID الشخص الآخر">
+    <button onclick="call()">اتصال</button>
+
+    <h3>الفيديو</h3>
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

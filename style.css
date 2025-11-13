@@ -1,0 +1,44 @@
+body {
+    margin: 0;
+    padding: 0;
+    background: #eceff1;
+    font-family: Arial;
+    text-align: center;
+}
+
+.app {
+    width: 90%;
+    max-width: 400px;
+    margin: 20px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 10px #999;
+}
+
+input {
+    width: 90%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
+
+button {
+    padding: 10px 20px;
+    background: #009688;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    margin-bottom: 15px;
+    cursor: pointer;
+}
+
+video {
+    width: 100%;
+    background: black;
+    border-radius: 10px;
+    margin-top: 10px;
+}
