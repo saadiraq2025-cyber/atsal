@@ -1,14 +1,6 @@
-//--------------------------------------
-// مشكلة دخول: تم إصلاحها بإضافة الانتظار حتى تحميل Firebase كامل
-//--------------------------------------
-
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("Ready");
-});
-
-//--------------------------------------
-// Firebase
-//--------------------------------------
+//-------------------------------------------------------
+// Firebase الصحيح 100%
+//-------------------------------------------------------
 const firebaseConfigCall = {
   apiKey: "AIzaSyA_3TFx5dUR3JbcXj5fIZ_mpjWeco7FVo",
   authDomain: "tktkbaghdad.firebaseapp.com",
@@ -19,18 +11,13 @@ const firebaseConfigCall = {
   appId: "1:939931176033:web:1d44fa5fd01ee75b326e20"
 };
 
-// Firebase صحيح 100%
-let callApp = null;
-let callDB = null;
+// تهيئة Firebase مستقل للاتصال فقط
+const callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
+const callDB = firebase.database(callApp);
 
-window.onload = () => {
-    callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
-    callDB = firebase.database(callApp);
-};
-
-//--------------------------------------
+//-------------------------------------------------------
 // تسجيل دخول
-//--------------------------------------
+//-------------------------------------------------------
 let myId = null;
 let pc = null;
 let otherUser = null;
@@ -44,43 +31,40 @@ function login() {
     }
 
     myId = pin;
-
     document.getElementById("myId").innerText = myId;
+
     document.getElementById("login").style.display = "none";
     document.getElementById("callArea").style.display = "block";
 
     initWebRTC();
 }
 
-//--------------------------------------
+//-------------------------------------------------------
 // WebRTC
-//--------------------------------------
+//-------------------------------------------------------
 function initWebRTC() {
 
     pc = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
 
-    // فيديو محلي
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .then(stream => {
         document.getElementById("localVideo").srcObject = stream;
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
     });
 
-    // فيديو الطرف الآخر
     pc.ontrack = event => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
     };
 
-    // إرسال ICE
     pc.onicecandidate = event => {
         if (event.candidate && otherUser) {
             callDB.ref("candidates/" + otherUser + "/" + myId).push(event.candidate);
         }
     };
 
-    // استقبال العرض
+    // استقبال عرض اتصال
     callDB.ref("calls/" + myId).on("value", async snap => {
         let data = snap.val();
         if (!data) return;
@@ -99,7 +83,7 @@ function initWebRTC() {
         listenICE(otherUser);
     });
 
-    // استقبال الرد
+    // استقبال رد الاتصال
     callDB.ref("answers/" + myId).on("value", async snap => {
         let data = snap.val();
         if (!data) return;
@@ -108,23 +92,23 @@ function initWebRTC() {
     });
 }
 
-//--------------------------------------
+//-------------------------------------------------------
 // استقبال ICE
-//--------------------------------------
+//-------------------------------------------------------
 function listenICE(id) {
     callDB.ref("candidates/" + myId + "/" + id).on("child_added", snap => {
         pc.addIceCandidate(new RTCIceCandidate(snap.val()));
     });
 }
 
-//--------------------------------------
+//-------------------------------------------------------
 // بدء الاتصال
-//--------------------------------------
+//-------------------------------------------------------
 async function startCall() {
     otherUser = document.getElementById("otherId").value.trim();
 
-    if (otherUser.length !== 4) {
-        alert("يجب إدخال 4 أرقام للشخص الآخر");
+    if (otherUser.length !== 4 || isNaN(otherUser)) {
+        alert("رقم الشخص يجب أن يكون 4 أرقام");
         return;
     }
 
