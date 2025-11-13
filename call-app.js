@@ -1,5 +1,13 @@
 //--------------------------------------
-// Firebase مخصص للاتصال فقط
+// مشكلة دخول: تم إصلاحها بإضافة الانتظار حتى تحميل Firebase كامل
+//--------------------------------------
+
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("Ready");
+});
+
+//--------------------------------------
+// Firebase
 //--------------------------------------
 const firebaseConfigCall = {
   apiKey: "AIzaSyA_3TFx5dUR3JbcXj5fIZ_mpjWeco7FVo",
@@ -11,19 +19,26 @@ const firebaseConfigCall = {
   appId: "1:939931176033:web:1d44fa5fd01ee75b326e20"
 };
 
-// تهيئة تطبيق مستقل
-const callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
-const callDB = firebase.database(callApp);
+// Firebase صحيح 100%
+let callApp = null;
+let callDB = null;
+
+window.onload = () => {
+    callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
+    callDB = firebase.database(callApp);
+};
 
 //--------------------------------------
 // تسجيل دخول
 //--------------------------------------
 let myId = null;
+let pc = null;
+let otherUser = null;
 
 function login() {
     let pin = document.getElementById("pin").value.trim();
 
-    if (pin.length !== 4) {
+    if (pin.length !== 4 || isNaN(pin)) {
         alert("يجب إدخال 4 أرقام فقط");
         return;
     }
@@ -40,9 +55,6 @@ function login() {
 //--------------------------------------
 // WebRTC
 //--------------------------------------
-let pc;
-let otherUser = null;
-
 function initWebRTC() {
 
     pc = new RTCPeerConnection({
@@ -56,19 +68,19 @@ function initWebRTC() {
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
     });
 
-    // ظهور فيديو الطرف الآخر
+    // فيديو الطرف الآخر
     pc.ontrack = event => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
     };
 
     // إرسال ICE
     pc.onicecandidate = event => {
-        if (event.candidate) {
+        if (event.candidate && otherUser) {
             callDB.ref("candidates/" + otherUser + "/" + myId).push(event.candidate);
         }
     };
 
-    // استقبال عروض الاتصال
+    // استقبال العرض
     callDB.ref("calls/" + myId).on("value", async snap => {
         let data = snap.val();
         if (!data) return;
@@ -91,13 +103,13 @@ function initWebRTC() {
     callDB.ref("answers/" + myId).on("value", async snap => {
         let data = snap.val();
         if (!data) return;
+
         await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     });
-
 }
 
 //--------------------------------------
-// ICE Listener
+// استقبال ICE
 //--------------------------------------
 function listenICE(id) {
     callDB.ref("candidates/" + myId + "/" + id).on("child_added", snap => {
@@ -112,7 +124,7 @@ async function startCall() {
     otherUser = document.getElementById("otherId").value.trim();
 
     if (otherUser.length !== 4) {
-        alert("رقم المستخدم يجب أن يكون 4 أرقام");
+        alert("يجب إدخال 4 أرقام للشخص الآخر");
         return;
     }
 
