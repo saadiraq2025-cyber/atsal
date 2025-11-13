@@ -1,6 +1,6 @@
-//-------------------------------------------------------
+//--------------------------------------------------------
 // Firebase الصحيح
-//-------------------------------------------------------
+//--------------------------------------------------------
 const firebaseConfigCall = {
   apiKey: "AIzaSyA_3TFx5dUR3JbcXj5fIZ_mpjWeco7FVo",
   authDomain: "tktkbaghdad.firebaseapp.com",
@@ -11,26 +11,25 @@ const firebaseConfigCall = {
   appId: "1:939931176033:web:1d44fa5fd01ee75b326e20"
 };
 
-// Firebase منفصل
 const callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
 const callDB = firebase.database(callApp);
 
-//-------------------------------------------------------
-// متغيرات عامة
-//-------------------------------------------------------
+//--------------------------------------------------------
+// متغيرات
+//--------------------------------------------------------
 let myId = null;
-let otherUser = null;
-let pc = null; 
-let localStream = null;
+let otherId = null;
+let pc;
+let localStream;
 
-//-------------------------------------------------------
-// تسجيل الدخول
-//-------------------------------------------------------
+//--------------------------------------------------------
+// تسجيل دخول
+//--------------------------------------------------------
 function login() {
     const pin = document.getElementById("pin").value.trim();
 
     if (pin.length !== 4 || isNaN(pin)) {
-        alert("يجب إدخال رقم رباعي صحيح");
+        alert("الرقم يجب أن يكون 4 أرقام");
         return;
     }
 
@@ -40,103 +39,103 @@ function login() {
     document.getElementById("login").style.display = "none";
     document.getElementById("callArea").style.display = "block";
 
-    initWebRTC(); // 🔥 أهم خطوة
+    waitForCalls();
+    initMedia();
 }
 
-//-------------------------------------------------------
-// WebRTC
-//-------------------------------------------------------
-async function initWebRTC() {
-
-    pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
-
-    // الحصول على الفيديو
-    localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-    });
-
-    document.getElementById("localVideo").srcObject = localStream;
-
-    localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
-    });
-
-    // فيديو الطرف الآخر
-    pc.ontrack = event => {
-        document.getElementById("remoteVideo").srcObject = event.streams[0];
-    };
-
-    // إرسال ICE
-    pc.onicecandidate = event => {
-        if (event.candidate && otherUser) {
-            callDB.ref("candidates/" + otherUser + "/" + myId).push(event.candidate);
-        }
-    };
-
-    // استقبال عرض اتصال
+//--------------------------------------------------------
+// قراءة المكالمات الواردة
+//--------------------------------------------------------
+function waitForCalls() {
     callDB.ref("calls/" + myId).on("value", async snap => {
         const data = snap.val();
         if (!data) return;
 
-        otherUser = data.from;
+        console.log("📞 مكالمة واردة من:", data.from);
+
+        otherId = data.from;
+
+        await ensurePC();
 
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
 
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
-        callDB.ref("answers/" + otherUser).set({
-            answer: answer
-        });
+        callDB.ref("answers/" + otherId).set({ answer });
 
-        listenICE(otherUser);
-    });
-
-    // استقبال الرد
-    callDB.ref("answers/" + myId).on("value", async snap => {
-        const data = snap.val();
-        if (!data) return;
-
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        listenICE(otherId);
     });
 }
 
-//-------------------------------------------------------
-// استقبال ICE
-//-------------------------------------------------------
-function listenICE(id) {
-    callDB.ref("candidates/" + myId + "/" + id).on("child_added", snap => {
-        pc.addIceCandidate(new RTCIceCandidate(snap.val()));
+//--------------------------------------------------------
+// تشغيل الكاميرا والمايك
+//--------------------------------------------------------
+async function initMedia() {
+    localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
     });
+
+    document.getElementById("localVideo").srcObject = localStream;
 }
 
-//-------------------------------------------------------
-// زر الاتصال (بعد التصحيح)
-//-------------------------------------------------------
-async function startCall() {
+//--------------------------------------------------------
+// إنشاء PeerConnection
+//--------------------------------------------------------
+async function ensurePC() {
+    if (pc) return;
 
-    otherUser = document.getElementById("otherId").value.trim();
+    pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
 
-    if (otherUser.length !== 4 || isNaN(otherUser)) {
-        alert("الرقم غير صحيح");
+    localStream.getTracks().forEach(t =>
+        pc.addTrack(t, localStream)
+    );
+
+    pc.ontrack = e => {
+        document.getElementById("remoteVideo").srcObject = e.streams[0];
+    };
+
+    pc.onicecandidate = e => {
+        if (e.candidate && otherId) {
+            callDB.ref("candidates/" + otherId + "/" + myId).push(e.candidate);
+        }
+    };
+}
+
+//--------------------------------------------------------
+// زر اتصال
+//--------------------------------------------------------
+async function makeCall() {
+    otherId = document.getElementById("otherId").value.trim();
+
+    if (otherId.length !== 4) {
+        alert("أدخل رقم الشخص بشكل صحيح");
         return;
     }
 
-    if (!pc) {
-        alert("المكالمات غير مهيئة… أعد تسجيل الدخول");
-        return;
-    }
+    await ensurePC();
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    callDB.ref("calls/" + otherUser).set({
+    callDB.ref("calls/" + otherId).set({
         from: myId,
-        offer: offer
+        offer
     });
 
-    listenICE(otherUser);
+    listenICE(otherId);
 }
+
+//--------------------------------------------------------
+// استقبال ICE
+//--------------------------------------------------------
+function listenICE(id) {
+    callDB.ref("candidates/" + myId + "/" + id).on("child_added", s => {
+        pc.addIceCandidate(new RTCIceCandidate(s.val()));
+    });
+}
+
+//--------------------------------------------------------
