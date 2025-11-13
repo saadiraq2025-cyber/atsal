@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>اتصال واتساب ويب</title>
+    <title>اتصال فيديو</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="app">
-    <h2>تطبيق اتصال - مثل واتساب</h2>
+    <h2>اتصال فيديو - WebRTC</h2>
 
-    <input id="myId" type="text" placeholder="Your ID" readonly>
-    <button onclick="generateId()">إنشاء هويتي</button>
+    <input id="myId" type="text" readonly>
+    <button onclick="copyId()">نسخ هويتي</button>
 
     <input id="otherId" type="text" placeholder="ID الشخص الآخر">
-    <button onclick="call()">اتصال</button>
+    <button onclick="startCall()">اتصال</button>
 
     <h3>الفيديو</h3>
-    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
 </div>
 
