@@ -1,5 +1,5 @@
 //-------------------------------------------------------
-// Firebase الصحيح 100%
+// Firebase الصحيح
 //-------------------------------------------------------
 const firebaseConfigCall = {
   apiKey: "AIzaSyA_3TFx5dUR3JbcXj5fIZ_mpjWeco7FVo",
@@ -11,22 +11,26 @@ const firebaseConfigCall = {
   appId: "1:939931176033:web:1d44fa5fd01ee75b326e20"
 };
 
-// تهيئة Firebase مستقل للاتصال فقط
+// Firebase منفصل
 const callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
 const callDB = firebase.database(callApp);
 
 //-------------------------------------------------------
-// تسجيل دخول
+// متغيرات عامة
 //-------------------------------------------------------
 let myId = null;
-let pc = null;
 let otherUser = null;
+let pc = null; 
+let localStream = null;
 
+//-------------------------------------------------------
+// تسجيل الدخول
+//-------------------------------------------------------
 function login() {
-    let pin = document.getElementById("pin").value.trim();
+    const pin = document.getElementById("pin").value.trim();
 
     if (pin.length !== 4 || isNaN(pin)) {
-        alert("يجب إدخال 4 أرقام فقط");
+        alert("يجب إدخال رقم رباعي صحيح");
         return;
     }
 
@@ -36,28 +40,36 @@ function login() {
     document.getElementById("login").style.display = "none";
     document.getElementById("callArea").style.display = "block";
 
-    initWebRTC();
+    initWebRTC(); // 🔥 أهم خطوة
 }
 
 //-------------------------------------------------------
 // WebRTC
 //-------------------------------------------------------
-function initWebRTC() {
+async function initWebRTC() {
 
     pc = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
 
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    .then(stream => {
-        document.getElementById("localVideo").srcObject = stream;
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    // الحصول على الفيديو
+    localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
     });
 
+    document.getElementById("localVideo").srcObject = localStream;
+
+    localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+    });
+
+    // فيديو الطرف الآخر
     pc.ontrack = event => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
     };
 
+    // إرسال ICE
     pc.onicecandidate = event => {
         if (event.candidate && otherUser) {
             callDB.ref("candidates/" + otherUser + "/" + myId).push(event.candidate);
@@ -66,7 +78,7 @@ function initWebRTC() {
 
     // استقبال عرض اتصال
     callDB.ref("calls/" + myId).on("value", async snap => {
-        let data = snap.val();
+        const data = snap.val();
         if (!data) return;
 
         otherUser = data.from;
@@ -83,9 +95,9 @@ function initWebRTC() {
         listenICE(otherUser);
     });
 
-    // استقبال رد الاتصال
+    // استقبال الرد
     callDB.ref("answers/" + myId).on("value", async snap => {
-        let data = snap.val();
+        const data = snap.val();
         if (!data) return;
 
         await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -102,13 +114,19 @@ function listenICE(id) {
 }
 
 //-------------------------------------------------------
-// بدء الاتصال
+// زر الاتصال (بعد التصحيح)
 //-------------------------------------------------------
 async function startCall() {
+
     otherUser = document.getElementById("otherId").value.trim();
 
     if (otherUser.length !== 4 || isNaN(otherUser)) {
-        alert("رقم الشخص يجب أن يكون 4 أرقام");
+        alert("الرقم غير صحيح");
+        return;
+    }
+
+    if (!pc) {
+        alert("المكالمات غير مهيئة… أعد تسجيل الدخول");
         return;
     }
 
