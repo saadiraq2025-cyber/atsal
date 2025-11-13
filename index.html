@@ -10,7 +10,7 @@
 
 <div id="login" class="app">
     <h2>تسجيل دخول</h2>
-    <input id="pin" maxlength="4" placeholder="أدخل رقم من 4 أرقام">
+    <input id="pin" maxlength="4" placeholder="رقم من 4 أرقام">
     <button onclick="login()">دخول</button>
 </div>
 
@@ -20,15 +20,15 @@
     <p>رقمك: <span id="myId"></span></p>
 
     <input id="otherId" maxlength="4" placeholder="رقم الشخص الآخر">
-    <button onclick="startCall()">اتصال</button>
+    <button onclick="makeCall()">اتصال</button>
 
+    <h3>المكالمـة</h3>
     <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
 <script src="call-app.js"></script>
 
 </body>
