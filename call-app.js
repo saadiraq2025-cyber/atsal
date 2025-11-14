@@ -51,10 +51,9 @@ function initWebRTC() {
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
 
-    // صوت محلي فقط (التعديل هنا)
+    // صوت محلي فقط (التعديل الذي طلبته)
     navigator.mediaDevices.getUserMedia({ video: false, audio: true })
     .then(stream => {
-        // يمكنك إبقاء LocalVideo إذا كنت تريد عرض مؤشر صوتي، ولكن لن يظهر فيديو
         document.getElementById("localVideo").srcObject = stream;
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
         
@@ -69,7 +68,6 @@ function initWebRTC() {
 
     // استقبال الصوت/الفيديو
     pc.ontrack = event => {
-        // سيظهر الصوت المستلم، ويمكنك إخفاء عنصر الفيديو في style.css إذا أردت
         document.getElementById("remoteVideo").srcObject = event.streams[0];
     };
 
