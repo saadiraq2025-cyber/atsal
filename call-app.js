@@ -51,9 +51,10 @@ function initWebRTC() {
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
 
-    // فيديو محلي
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    // صوت محلي فقط (التعديل هنا)
+    navigator.mediaDevices.getUserMedia({ video: false, audio: true })
     .then(stream => {
+        // يمكنك إبقاء LocalVideo إذا كنت تريد عرض مؤشر صوتي، ولكن لن يظهر فيديو
         document.getElementById("localVideo").srcObject = stream;
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
         
@@ -62,12 +63,13 @@ function initWebRTC() {
         setupCallListeners();
     })
     .catch(error => {
-        console.error("خطأ في الوصول إلى الكاميرا والميكروفون:", error);
-        alert("يرجى السماح بالوصول إلى الكاميرا والميكروفون لبدء الاتصال.");
+        console.error("خطأ في الوصول إلى الميكروفون:", error);
+        alert("يرجى السماح بالوصول إلى الميكروفون لبدء الاتصال.");
     });
 
-    // ظهور فيديو الطرف الآخر
+    // استقبال الصوت/الفيديو
     pc.ontrack = event => {
+        // سيظهر الصوت المستلم، ويمكنك إخفاء عنصر الفيديو في style.css إذا أردت
         document.getElementById("remoteVideo").srcObject = event.streams[0];
     };
 
@@ -151,7 +153,7 @@ function listenICE(id) {
 async function startCall() {
     // التحقق من جاهزية WebRTC قبل محاولة الاتصال
     if (!isWebRTCReady) {
-        alert("الرجاء الانتظار، لم يتمكن التطبيق من الوصول إلى الكاميرا والميكروفون بعد.");
+        alert("الرجاء الانتظار، لم يتمكن التطبيق من الوصول إلى الميكروفون بعد.");
         return;
     }
 
@@ -180,7 +182,7 @@ async function startCall() {
         
     } catch (error) {
         console.error("خطأ في بدء الاتصال:", error);
-        alert("فشل في إنشاء عرض الاتصال. يرجى التأكد من أنك سمحت بالوصول للكاميرا/الميكروفون.");
+        alert("فشل في إنشاء عرض الاتصال. يرجى التأكد من أنك سمحت بالوصول للميكروفون.");
     }
 }
 
