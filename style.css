@@ -1,45 +1,35 @@
 body {
-    margin: 0;
-    padding: 0;
-    background: #e0f7fa;
+    font-family: sans-serif;
+    background: #dff6ff;
     text-align: center;
-    font-family: Tahoma;
 }
 
-.app {
-    width: 92%;
-    max-width: 450px;
-    margin: 25px auto;
+.card {
     background: white;
     padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 4px 12px #888;
+    width: 330px;
+    margin: 20px auto;
+    border-radius: 10px;
 }
 
 input {
-    width: 85%;
-    padding: 12px;
+    width: 90%;
+    padding: 10px;
     margin: 10px 0;
-    border-radius: 10px;
-    border: 1px solid #aaa;
-    font-size: 18px;
-    text-align: center;
 }
 
 button {
-    width: 90%;
     padding: 12px;
-    background: #0288d1;
+    width: 95%;
+    background: #007bff;
     color: white;
     border: none;
-    border-radius: 10px;
-    font-size: 18px;
-    cursor: pointer;
+    border-radius: 6px;
 }
 
 video {
     width: 100%;
-    margin-top: 10px;
     background: black;
-    border-radius: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
 }
