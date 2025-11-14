@@ -1,115 +1,181 @@
-// -------- Firebase --------
-const firebaseConfig = {
-    apiKey: "AIzaSyCZvBwSKDyA5fQH4gIiONxy7ZPINu2VlXA",
-    authDomain: "tktkbaghdad.firebaseapp.com",
-    projectId: "tktkbaghdad",
-    storageBucket: "tktkbaghdad.firebasestorage.app",
-    messagingSenderId: "939931176033",
-    appId: "1:939931176033:web:1d44fa5fd01ee75b326e20"
+//--------------------------------------
+// Firebase مخصص للاتصال فقط
+//--------------------------------------
+const firebaseConfigCall = {
+  // يرجى استبدال هذه القيم بقيم تطبيقك الحقيقية
+  apiKey: "AIzaSyA_3TFx5dUR3JbcXj5fIZ_mpjWeco7FVo",
+  authDomain: "tktkbaghdad.firebaseapp.com",
+  databaseURL: "https://tktkbaghdad-default-rtdb.firebaseio.com",
+  projectId: "tktkbaghdad",
+  storageBucket: "tktkbaghdad.firebasestorage.app",
+  messagingSenderId: "939931176033",
+  appId: "1:939931176033:web:1d44fa5fd01ee75b326e20"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// تهيئة تطبيق مستقل
+const callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
+const callDB = firebase.database(callApp);
 
-// -------- عناصر HTML --------
-const myId = Math.floor(1000 + Math.random() * 9000);
-document.getElementById("myId").innerText = myId;
+//--------------------------------------
+// تسجيل دخول
+//--------------------------------------
+let myId = null;
 
-const callToId = document.getElementById("callToId");
-const callBtn = document.getElementById("callBtn");
+function login() {
+    let pin = document.getElementById("pin").value.trim();
 
-let pc;
-const configuration = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-};
+    if (pin.length !== 4) {
+        alert("يجب إدخال 4 أرقام فقط");
+        return;
+    }
 
-// -------- الحصول على الفيديو --------
-async function initMedia() {
-    return await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    myId = pin;
+
+    document.getElementById("myId").innerText = myId;
+    document.getElementById("login").style.display = "none";
+    document.getElementById("callArea").style.display = "block";
+
+    initWebRTC();
 }
 
-// -------- إنشاء PeerConnection --------
-function createPeer() {
-    pc = new RTCPeerConnection(configuration);
+//--------------------------------------
+// WebRTC
+//--------------------------------------
+let pc;
+let otherUser = null;
 
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            callerRef.collection("candidates").add(event.candidate.toJSON());
-        }
-    };
+function initWebRTC() {
 
-    pc.ontrack = (event) => {
+    pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
+
+    // فيديو محلي
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(stream => {
+        document.getElementById("localVideo").srcObject = stream;
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        // ابدأ بالاستماع للعروض بعد الحصول على البث المحلي
+        setupCallListeners();
+    })
+    .catch(error => {
+        console.error("خطأ في الوصول إلى الكاميرا والميكروفون:", error);
+        alert("يرجى السماح بالوصول إلى الكاميرا والميكروفون لبدء الاتصال.");
+    });
+
+    // ظهور فيديو الطرف الآخر
+    pc.ontrack = event => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
     };
 
-    return pc;
+    // إرسال ICE Candidates بمجرد أن تصبح جاهزة
+    pc.onicecandidate = event => {
+        if (event.candidate && otherUser) {
+            // إرسال ICE Candidate إلى الطرف الآخر باستخدام رقم التعريف الخاص به
+            console.log("إرسال ICE Candidate:", event.candidate);
+            callDB.ref(`candidates/${otherUser}/${myId}`).push(event.candidate);
+        }
+    };
 }
 
-// -------- عند الضغط على اتصال --------
-callBtn.onclick = async () => {
-    const targetId = callToId.value.trim();
-    if (targetId === "") return;
+//--------------------------------------
+// إعداد مستمعي Firebase للعروض والردود و ICE Candidates
+//--------------------------------------
+function setupCallListeners() {
+    // 1. استقبال عروض الاتصال (كطرف مستقبل)
+    callDB.ref("calls/" + myId).on("value", async snap => {
+        let data = snap.val();
+        if (!data) return;
 
-    const stream = await initMedia();
-    document.getElementById("localVideo").srcObject = stream;
+        // مسح العرض بمجرد استقباله لتجنب الردود المتكررة
+        callDB.ref("calls/" + myId).set(null); 
+        
+        // تعيين المستخدم الآخر وبدء المعالجة
+        otherUser = data.from;
+        
+        console.log("تلقي عرض من:", otherUser);
 
-    pc = createPeer();
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            
+            // إنشاء الإجابة
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
 
-    const callerRef = db.collection("calls").doc(String(myId));
-    const calleeRef = db.collection("calls").doc(String(targetId));
+            // إرسال الإجابة
+            callDB.ref("answers/" + otherUser).set({
+                answer: answer
+            });
 
-    await callerRef.set({ from: myId, to: targetId });
+            // بدء الاستماع لمرشحات ICE الخاصة بالطرف الآخر
+            listenICE(otherUser);
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    await callerRef.update({ offer: offer });
-
-    // -------- الاستماع للـ Answer --------
-    calleeRef.onSnapshot(async (snap) => {
-        const data = snap.data();
-        if (!pc.currentRemoteDescription && data?.answer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        } catch (error) {
+            console.error("خطأ في معالجة العرض:", error);
         }
     });
 
-    // -------- استقبال ICE --------
-    calleeRef.collection("candidates").onSnapshot((snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === "added") {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                pc.addIceCandidate(candidate);
-            }
-        });
+    // 2. استقبال الرد (كطرف متصل)
+    callDB.ref("answers/" + myId).on("value", async snap => {
+        let data = snap.val();
+        if (!data) return;
+        
+        // مسح الرد بمجرد استقباله
+        callDB.ref("answers/" + myId).set(null);
+
+        console.log("تلقي الرد.");
+        
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        } catch (error) {
+            console.error("خطأ في معالجة الرد:", error);
+        }
     });
-};
+}
 
-// -------- استقبال المكالمات --------
-const answerRef = db.collection("calls").doc(String(myId));
-
-answerRef.onSnapshot(async (snap) => {
-    const data = snap.data();
-    if (!data?.offer) return;
-
-    const stream = await initMedia();
-    document.getElementById("localVideo").srcObject = stream;
-
-    pc = createPeer();
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    await answerRef.update({ answer: answer });
-
-    answerRef.collection("candidates").onSnapshot((snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === "added") {
-                pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-            }
-        });
+//--------------------------------------
+// ICE Listener
+//--------------------------------------
+function listenICE(id) {
+    // الاستماع لمرشحات ICE Candidate الخاصة بالطرف الآخر
+    callDB.ref("candidates/" + myId + "/" + id).on("child_added", snap => {
+        const candidate = snap.val();
+        console.log("تلقي ICE Candidate:", candidate);
+        if (candidate) {
+             pc.addIceCandidate(new RTCIceCandidate(candidate))
+                 .catch(e => console.error("خطأ في إضافة ICE Candidate:", e));
+        }
     });
-});
+}
+
+//--------------------------------------
+// بدء الاتصال
+//--------------------------------------
+async function startCall() {
+    const targetId = document.getElementById("otherId").value.trim();
+
+    if (targetId.length !== 4) {
+        alert("رقم المستخدم يجب أن يكون 4 أرقام");
+        return;
+    }
+    
+    otherUser = targetId;
+    console.log("محاولة الاتصال بـ:", otherUser);
+
+    try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        // إرسال العرض
+        callDB.ref("calls/" + otherUser).set({
+            from: myId,
+            offer: offer
+        });
+
+        // بدء الاستماع لمرشحات ICE الخاصة بالطرف الآخر
+        listenICE(otherUser);
+        
+    } catch (error) {
+        console.error("خطأ في بدء الاتصال:", error);
+    }
+}
