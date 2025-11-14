@@ -160,11 +160,12 @@ function setupCallListeners() {
         let data = snap.val();
         if (!data) return;
         
-        // يجب أن نرسل الرد/الرفض يدوياً، لذلك لا يتم مسح العرض هنا تلقائياً
-        
         if (data.offer && data.from) {
-            console.log("تلقي عرض مكالمة جديد.");
-            showIncomingCall(data.from, data.offer);
+             // ***** التعديل الذي يحل مشكلة InvalidAccessError *****
+             callDB.ref("calls/" + myId).set(null); 
+             
+             console.log("تلقي عرض مكالمة جديد.");
+             showIncomingCall(data.from, data.offer);
         }
     });
 
@@ -198,9 +199,6 @@ function setupCallListeners() {
         
         // إعادة تهيئة حالة الاتصال
         otherUser = null;
-        
-        // يمكنك إضافة منطق إعادة تحميل بسيط إذا واجهت مشاكل
-        // window.location.reload(); 
     });
 }
 
@@ -250,7 +248,6 @@ async function startCall() {
         // بدء الاستماع لمرشحات ICE الخاصة بالطرف الآخر
         listenICE(otherUser);
         
-        // يمكنك عرض رسالة "جاري الاتصال..." هنا
         alert(`جاري الاتصال بالمستخدم ${otherUser}...`);
 
     } catch (error) {
