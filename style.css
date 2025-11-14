@@ -1,36 +1,36 @@
 body {
     margin: 0;
     padding: 0;
-    font-family: Tahoma;
     background: #e0f7fa;
     text-align: center;
+    font-family: Tahoma;
 }
 
 .app {
-    width: 90%;
+    width: 92%;
     max-width: 450px;
     margin: 25px auto;
-    background: #fff;
+    background: white;
     padding: 20px;
     border-radius: 15px;
-    box-shadow: 0 4px 12px #aaa;
+    box-shadow: 0 4px 12px #888;
 }
 
 input {
     width: 85%;
     padding: 12px;
-    margin: 10px;
+    margin: 10px 0;
     border-radius: 10px;
     border: 1px solid #aaa;
-    text-align: center;
     font-size: 18px;
+    text-align: center;
 }
 
 button {
     width: 90%;
     padding: 12px;
     background: #0288d1;
-    color: #fff;
+    color: white;
     border: none;
     border-radius: 10px;
     font-size: 18px;
@@ -39,7 +39,7 @@ button {
 
 video {
     width: 100%;
-    margin-top: 12px;
-    border-radius: 12px;
+    margin-top: 10px;
     background: black;
+    border-radius: 12px;
 }
