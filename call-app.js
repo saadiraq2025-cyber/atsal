@@ -2,8 +2,8 @@
 // Firebase مخصص للاتصال فقط
 //--------------------------------------
 const firebaseConfigCall = {
-  // يرجى استبدال هذه القيم بقيم تطبيقك الحقيقية
-  apiKey: "AIzaSyA_3TFx5dUR3JbcXj5fIZ_mpjWeco7FVo",
+  // تم تحديث المفتاح بناءً على طلبك
+  apiKey: "AIzaSyA_3TFx5dUR3JbcXj5jFIZ_mpjWeco7FVo", 
   authDomain: "tktkbaghdad.firebaseapp.com",
   databaseURL: "https://tktkbaghdad-default-rtdb.firebaseio.com",
   projectId: "tktkbaghdad",
