@@ -17,9 +17,14 @@ const callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
 const callDB = firebase.database(callApp);
 
 //--------------------------------------
-// تسجيل دخول
+// حالة التطبيق
 //--------------------------------------
 let myId = null;
+let pc;
+let otherUser = null;
+let isWebRTCReady = false; 
+let incomingOffer = null; // لتخزين العرض مؤقتاً
+let incomingFrom = null; // لتخزين هوية المتصل مؤقتاً
 
 function login() {
     let pin = document.getElementById("pin").value.trim();
@@ -39,19 +44,15 @@ function login() {
 }
 
 //--------------------------------------
-// WebRTC
+// WebRTC Initializer
 //--------------------------------------
-let pc;
-let otherUser = null;
-let isWebRTCReady = false; 
-
 function initWebRTC() {
 
     pc = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
 
-    // صوت محلي فقط (التعديل الذي طلبته)
+    // صوت محلي فقط 
     navigator.mediaDevices.getUserMedia({ video: false, audio: true })
     .then(stream => {
         document.getElementById("localVideo").srcObject = stream;
@@ -71,7 +72,7 @@ function initWebRTC() {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
     };
 
-    // إرسال ICE Candidates بمجرد أن تصبح جاهزة
+    // إرسال ICE Candidates
     pc.onicecandidate = event => {
         if (event.candidate && otherUser) {
             console.log("إرسال ICE Candidate:", event.candidate);
@@ -81,35 +82,89 @@ function initWebRTC() {
 }
 
 //--------------------------------------
-// إعداد مستمعي Firebase للعروض والردود و ICE Candidates
+// استقبال المكالمة (عرض الإشعار)
+//--------------------------------------
+function showIncomingCall(callerId, offer) {
+    // تخزين البيانات مؤقتاً
+    incomingFrom = callerId;
+    incomingOffer = offer;
+    
+    // عرض الإشعار
+    document.getElementById("incomingCallerId").innerText = callerId;
+    document.getElementById("incomingCallNotification").style.display = "block";
+    
+    // إخفاء منطقة الاتصال الحالية
+    document.getElementById("callArea").style.display = "none";
+}
+
+//--------------------------------------
+// قبول المكالمة
+//--------------------------------------
+async function acceptCall() {
+    // 1. إعادة واجهة المستخدم
+    document.getElementById("incomingCallNotification").style.display = "none";
+    document.getElementById("callArea").style.display = "block";
+    
+    otherUser = incomingFrom; // تعيين المستخدم الآخر لبدء تبادل ICE
+    
+    console.log("قبول مكالمة من:", otherUser);
+
+    try {
+        // 2. معالجة العرض وإنشاء الرد
+        await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        // 3. إرسال الرد
+        callDB.ref("answers/" + otherUser).set({ answer: answer });
+        
+        // 4. بدء الاستماع لمرشحات ICE
+        listenICE(otherUser);
+
+    } catch (error) {
+        console.error("خطأ في قبول المكالمة:", error);
+        alert("فشل في قبول المكالمة.");
+    }
+
+    // مسح البيانات المؤقتة
+    incomingOffer = null;
+    incomingFrom = null;
+}
+
+//--------------------------------------
+// رفض المكالمة
+//--------------------------------------
+function rejectCall() {
+    // 1. إعادة واجهة المستخدم
+    document.getElementById("incomingCallNotification").style.display = "none";
+    document.getElementById("callArea").style.display = "block";
+    
+    console.log("تم رفض المكالمة من:", incomingFrom);
+    
+    // 2. إرسال إشارة الرفض
+    callDB.ref("rejections/" + incomingFrom).set({ rejectedBy: myId });
+
+    // مسح البيانات المؤقتة
+    incomingOffer = null;
+    incomingFrom = null;
+    otherUser = null; 
+}
+
+
+//--------------------------------------
+// إعداد مستمعي Firebase
 //--------------------------------------
 function setupCallListeners() {
-    // 1. استقبال عروض الاتصال (كطرف مستقبل)
+    // 1. استقبال عروض الاتصال (بدلاً من الرد التلقائي، يتم عرض الإشعار)
     callDB.ref("calls/" + myId).on("value", async snap => {
         let data = snap.val();
         if (!data) return;
-
-        // مسح العرض بمجرد استقباله لتجنب الردود المتكررة
-        callDB.ref("calls/" + myId).set(null); 
         
-        otherUser = data.from;
+        // يجب أن نرسل الرد/الرفض يدوياً، لذلك لا يتم مسح العرض هنا تلقائياً
         
-        console.log("تلقي عرض من:", otherUser);
-
-        try {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            callDB.ref("answers/" + otherUser).set({
-                answer: answer
-            });
-
-            listenICE(otherUser);
-
-        } catch (error) {
-            console.error("خطأ في معالجة العرض:", error);
+        if (data.offer && data.from) {
+            console.log("تلقي عرض مكالمة جديد.");
+            showIncomingCall(data.from, data.offer);
         }
     });
 
@@ -128,6 +183,24 @@ function setupCallListeners() {
         } catch (error) {
             console.error("خطأ في معالجة الرد:", error);
         }
+    });
+    
+    // 3. استقبال الرفض (كطرف متصل)
+    callDB.ref("rejections/" + myId).on("value", async snap => {
+        let data = snap.val();
+        if (!data) return;
+        
+        // مسح الرفض بمجرد استقباله
+        callDB.ref("rejections/" + myId).set(null);
+
+        alert(`تم رفض مكالمتك من قبل المستخدم ${data.rejectedBy}.`);
+        console.log("تم رفض المكالمة.");
+        
+        // إعادة تهيئة حالة الاتصال
+        otherUser = null;
+        
+        // يمكنك إضافة منطق إعادة تحميل بسيط إذا واجهت مشاكل
+        // window.location.reload(); 
     });
 }
 
@@ -149,7 +222,6 @@ function listenICE(id) {
 // بدء الاتصال
 //--------------------------------------
 async function startCall() {
-    // التحقق من جاهزية WebRTC قبل محاولة الاتصال
     if (!isWebRTCReady) {
         alert("الرجاء الانتظار، لم يتمكن التطبيق من الوصول إلى الميكروفون بعد.");
         return;
@@ -178,25 +250,40 @@ async function startCall() {
         // بدء الاستماع لمرشحات ICE الخاصة بالطرف الآخر
         listenICE(otherUser);
         
+        // يمكنك عرض رسالة "جاري الاتصال..." هنا
+        alert(`جاري الاتصال بالمستخدم ${otherUser}...`);
+
     } catch (error) {
         console.error("خطأ في بدء الاتصال:", error);
-        alert("فشل في إنشاء عرض الاتصال. يرجى التأكد من أنك سمحت بالوصول للميكروفون.");
+        alert("فشل في إنشاء عرض الاتصال.");
     }
 }
 
 //--------------------------------------
-// ربط الأحداث (Event Listeners) لمنع خطأ CSP
+// ربط الأحداث (Event Listeners)
 //--------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
-    // ربط زر "دخول" بوظيفة login()
+    // تسجيل الدخول
     const loginButton = document.getElementById('login-button');
     if (loginButton) {
         loginButton.addEventListener('click', login);
     }
 
-    // ربط زر "اتصال" بوظيفة startCall()
+    // بدء الاتصال
     const callButton = document.getElementById('call-button');
     if (callButton) {
         callButton.addEventListener('click', startCall);
+    }
+    
+    // قبول المكالمة
+    const acceptButton = document.getElementById('acceptCallButton');
+    if (acceptButton) {
+        acceptButton.addEventListener('click', acceptCall);
+    }
+    
+    // رفض المكالمة
+    const rejectButton = document.getElementById('rejectCallButton');
+    if (rejectButton) {
+        rejectButton.addEventListener('click', rejectCall);
     }
 });
