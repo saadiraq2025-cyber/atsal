@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>اتصال فيديو - تسجيل دخول</title>
+    <title>اتصال صوتي</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,7 +15,7 @@
 </div>
 
 <div id="callArea" class="app" style="display:none;">
-    <h2>اتصال فيديو</h2>
+    <h2>اتصال صوتي</h2>
 
     <p>رقمك: <span id="myId"></span></p>
 
@@ -24,6 +24,13 @@
 
     <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
+</div>
+
+<div id="incomingCallNotification" class="app" style="display:none;">
+    <h2>مكالمة واردة 🔔</h2>
+    <p>من: <span id="incomingCallerId"></span></p>
+    <button id="acceptCallButton">قبول</button>
+    <button id="rejectCallButton">رفض</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
