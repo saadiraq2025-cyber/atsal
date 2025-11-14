@@ -1,27 +1,34 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اتصال فيديو</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>اتصال فيديو - تسجيل دخول</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="card">
+<div id="login" class="app">
+    <h2>تسجيل دخول</h2>
+    <input id="pin" maxlength="4" placeholder="ادخل رقم من 4 ارقام">
+    <button id="login-button">دخول</button>
+</div>
+
+<div id="callArea" class="app" style="display:none;">
     <h2>اتصال فيديو</h2>
+
     <p>رقمك: <span id="myId"></span></p>
 
-    <input id="callToId" placeholder="ادخل رقم الشخص" />
-    <button id="callBtn">اتصل</button>
+    <input id="otherId" maxlength="4" placeholder="رقم الشخص الآخر">
+    <button id="call-button">اتصال</button>
 
-    <h3>الفيديو</h3>
-    <video id="localVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
 <script src="call-app.js"></script>
 
 </body>
