@@ -1,6 +1,6 @@
-//--------------------------------------------------------
-// Firebase الصحيح
-//--------------------------------------------------------
+//------------------------------------------------------
+// Firebase
+//------------------------------------------------------
 const firebaseConfigCall = {
   apiKey: "AIzaSyA_3TFx5dUR3JbcXj5fIZ_mpjWeco7FVo",
   authDomain: "tktkbaghdad.firebaseapp.com",
@@ -11,67 +11,39 @@ const firebaseConfigCall = {
   appId: "1:939931176033:web:1d44fa5fd01ee75b326e20"
 };
 
-const callApp = firebase.initializeApp(firebaseConfigCall, "call-app");
-const callDB = firebase.database(callApp);
+firebase.initializeApp(firebaseConfigCall);
+const db = firebase.database();
 
-//--------------------------------------------------------
-// متغيرات
-//--------------------------------------------------------
-let myId = null;
-let otherId = null;
+//------------------------------------------------------
+// المتغيرات
+//------------------------------------------------------
+let myId, otherId;
 let pc;
 let localStream;
 
-//--------------------------------------------------------
+//------------------------------------------------------
 // تسجيل دخول
-//--------------------------------------------------------
-function login() {
-    const pin = document.getElementById("pin").value.trim();
+//------------------------------------------------------
+async function login() {
+    myId = document.getElementById("pin").value.trim();
 
-    if (pin.length !== 4 || isNaN(pin)) {
+    if (myId.length !== 4 || isNaN(myId)) {
         alert("الرقم يجب أن يكون 4 أرقام");
         return;
     }
 
-    myId = pin;
     document.getElementById("myId").innerText = myId;
-
     document.getElementById("login").style.display = "none";
     document.getElementById("callArea").style.display = "block";
 
-    waitForCalls();
-    initMedia();
+    await setupMedia();
+    waitForCall();
 }
 
-//--------------------------------------------------------
-// قراءة المكالمات الواردة
-//--------------------------------------------------------
-function waitForCalls() {
-    callDB.ref("calls/" + myId).on("value", async snap => {
-        const data = snap.val();
-        if (!data) return;
-
-        console.log("📞 مكالمة واردة من:", data.from);
-
-        otherId = data.from;
-
-        await ensurePC();
-
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        callDB.ref("answers/" + otherId).set({ answer });
-
-        listenICE(otherId);
-    });
-}
-
-//--------------------------------------------------------
-// تشغيل الكاميرا والمايك
-//--------------------------------------------------------
-async function initMedia() {
+//------------------------------------------------------
+// تحضير الفيديو والمايك - مهم جداً
+//------------------------------------------------------
+async function setupMedia() {
     localStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
@@ -80,12 +52,10 @@ async function initMedia() {
     document.getElementById("localVideo").srcObject = localStream;
 }
 
-//--------------------------------------------------------
+//------------------------------------------------------
 // إنشاء PeerConnection
-//--------------------------------------------------------
-async function ensurePC() {
-    if (pc) return;
-
+//------------------------------------------------------
+function createPC() {
     pc = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
@@ -100,42 +70,75 @@ async function ensurePC() {
 
     pc.onicecandidate = e => {
         if (e.candidate && otherId) {
-            callDB.ref("candidates/" + otherId + "/" + myId).push(e.candidate);
+            db.ref("ice/" + otherId + "/" + myId).push(e.candidate);
         }
     };
 }
 
-//--------------------------------------------------------
-// زر اتصال
-//--------------------------------------------------------
+//------------------------------------------------------
+// انتظار المكالمة للطرف المستلم
+//------------------------------------------------------
+function waitForCall() {
+    db.ref("calls/" + myId).on("value", async snap => {
+        const data = snap.val();
+        if (!data) return;
+
+        otherId = data.from;
+
+        createPC();
+
+        await pc.setRemoteDescription(data.offer);
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        db.ref("answers/" + otherId).set({ answer });
+
+        receiveICE(otherId);
+    });
+}
+
+//------------------------------------------------------
+// زر الاتصال
+//------------------------------------------------------
 async function makeCall() {
     otherId = document.getElementById("otherId").value.trim();
 
-    if (otherId.length !== 4) {
-        alert("أدخل رقم الشخص بشكل صحيح");
+    if (otherId.length !== 4 || isNaN(otherId)) {
+        alert("الرقم خطأ");
         return;
     }
 
-    await ensurePC();
+    if (otherId === myId) {
+        alert("لا يمكنك الاتصال بنفسك");
+        return;
+    }
+
+    createPC();
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    callDB.ref("calls/" + otherId).set({
+    db.ref("calls/" + otherId).set({
         from: myId,
         offer
     });
 
-    listenICE(otherId);
+    receiveICE(otherId);
 }
 
-//--------------------------------------------------------
+//------------------------------------------------------
 // استقبال ICE
-//--------------------------------------------------------
-function listenICE(id) {
-    callDB.ref("candidates/" + myId + "/" + id).on("child_added", s => {
+//------------------------------------------------------
+function receiveICE(id) {
+    db.ref("ice/" + myId + "/" + id).on("child_added", s => {
         pc.addIceCandidate(new RTCIceCandidate(s.val()));
     });
-}
 
-//--------------------------------------------------------
+    db.ref("answers/" + myId).on("value", async snap => {
+        const data = snap.val();
+        if (!data) return;
+
+        await pc.setRemoteDescription(data.answer);
+    });
+}
