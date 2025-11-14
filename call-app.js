@@ -2,7 +2,7 @@
 // Firebase مخصص للاتصال فقط
 //--------------------------------------
 const firebaseConfigCall = {
-  // تم تحديث المفتاح بناءً على طلبك
+  // المفتاح المحدث بناءً على طلبك
   apiKey: "AIzaSyA_3TFx5dUR3JbcXj5jFIZ_mpjWeco7FVo", 
   authDomain: "tktkbaghdad.firebaseapp.com",
   databaseURL: "https://tktkbaghdad-default-rtdb.firebaseio.com",
@@ -43,6 +43,8 @@ function login() {
 //--------------------------------------
 let pc;
 let otherUser = null;
+// متغير لتتبع حالة جاهزية WebRTC (لضمان عمل زر الاتصال)
+let isWebRTCReady = false; 
 
 function initWebRTC() {
 
@@ -55,6 +57,10 @@ function initWebRTC() {
     .then(stream => {
         document.getElementById("localVideo").srcObject = stream;
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        
+        // تعيين العلم إلى true عند الحصول بنجاح على البث المحلي
+        isWebRTCReady = true; 
+        
         // ابدأ بالاستماع للعروض بعد الحصول على البث المحلي
         setupCallListeners();
     })
@@ -152,6 +158,12 @@ function listenICE(id) {
 // بدء الاتصال
 //--------------------------------------
 async function startCall() {
+    // التحقق من جاهزية WebRTC قبل محاولة الاتصال
+    if (!isWebRTCReady) {
+        alert("الرجاء الانتظار، لم يتمكن التطبيق من الوصول إلى الكاميرا والميكروفون بعد.");
+        return;
+    }
+
     const targetId = document.getElementById("otherId").value.trim();
 
     if (targetId.length !== 4) {
@@ -177,5 +189,6 @@ async function startCall() {
         
     } catch (error) {
         console.error("خطأ في بدء الاتصال:", error);
+        alert("فشل في إنشاء عرض الاتصال. يرجى التأكد من أنك سمحت بالوصول للكاميرا/الميكروفون.");
     }
 }
