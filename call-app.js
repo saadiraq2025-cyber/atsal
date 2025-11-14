@@ -2,7 +2,7 @@
 // Firebase مخصص للاتصال فقط
 //--------------------------------------
 const firebaseConfigCall = {
-  // المفتاح المحدث بناءً على طلبك
+  // المفتاح المحدث
   apiKey: "AIzaSyA_3TFx5dUR3JbcXj5jFIZ_mpjWeco7FVo", 
   authDomain: "tktkbaghdad.firebaseapp.com",
   databaseURL: "https://tktkbaghdad-default-rtdb.firebaseio.com",
@@ -43,7 +43,6 @@ function login() {
 //--------------------------------------
 let pc;
 let otherUser = null;
-// متغير لتتبع حالة جاهزية WebRTC (لضمان عمل زر الاتصال)
 let isWebRTCReady = false; 
 
 function initWebRTC() {
@@ -58,10 +57,8 @@ function initWebRTC() {
         document.getElementById("localVideo").srcObject = stream;
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
         
-        // تعيين العلم إلى true عند الحصول بنجاح على البث المحلي
         isWebRTCReady = true; 
         
-        // ابدأ بالاستماع للعروض بعد الحصول على البث المحلي
         setupCallListeners();
     })
     .catch(error => {
@@ -77,7 +74,6 @@ function initWebRTC() {
     // إرسال ICE Candidates بمجرد أن تصبح جاهزة
     pc.onicecandidate = event => {
         if (event.candidate && otherUser) {
-            // إرسال ICE Candidate إلى الطرف الآخر باستخدام رقم التعريف الخاص به
             console.log("إرسال ICE Candidate:", event.candidate);
             callDB.ref(`candidates/${otherUser}/${myId}`).push(event.candidate);
         }
@@ -96,7 +92,6 @@ function setupCallListeners() {
         // مسح العرض بمجرد استقباله لتجنب الردود المتكررة
         callDB.ref("calls/" + myId).set(null); 
         
-        // تعيين المستخدم الآخر وبدء المعالجة
         otherUser = data.from;
         
         console.log("تلقي عرض من:", otherUser);
@@ -104,16 +99,13 @@ function setupCallListeners() {
         try {
             await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
             
-            // إنشاء الإجابة
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
-            // إرسال الإجابة
             callDB.ref("answers/" + otherUser).set({
                 answer: answer
             });
 
-            // بدء الاستماع لمرشحات ICE الخاصة بالطرف الآخر
             listenICE(otherUser);
 
         } catch (error) {
@@ -143,7 +135,6 @@ function setupCallListeners() {
 // ICE Listener
 //--------------------------------------
 function listenICE(id) {
-    // الاستماع لمرشحات ICE Candidate الخاصة بالطرف الآخر
     callDB.ref("candidates/" + myId + "/" + id).on("child_added", snap => {
         const candidate = snap.val();
         console.log("تلقي ICE Candidate:", candidate);
@@ -192,3 +183,20 @@ async function startCall() {
         alert("فشل في إنشاء عرض الاتصال. يرجى التأكد من أنك سمحت بالوصول للكاميرا/الميكروفون.");
     }
 }
+
+//--------------------------------------
+// ربط الأحداث (Event Listeners) لمنع خطأ CSP
+//--------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // ربط زر "دخول" بوظيفة login()
+    const loginButton = document.getElementById('login-button');
+    if (loginButton) {
+        loginButton.addEventListener('click', login);
+    }
+
+    // ربط زر "اتصال" بوظيفة startCall()
+    const callButton = document.getElementById('call-button');
+    if (callButton) {
+        callButton.addEventListener('click', startCall);
+    }
+});
